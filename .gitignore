@@ -208,5 +208,9 @@ __marimo__/
 
 # data
 data/
-.json
-.csv
+*.json
+*.csv
+*.safetensors
+*.pt
+*.pth
+*.bin
