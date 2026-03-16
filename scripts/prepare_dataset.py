@@ -61,13 +61,13 @@ def format_training_example(langfuse_item, benchmark_item, use_full_reasoning=Fa
         "metadata": {
             "item_id": benchmark_item["item_id"],
             "expected_label": benchmark_item.get("expected_label"),
-            "teacher_model": "gemini-2.0-flash-001"
+            "teacher_model": ""
         }
     }
 
 def prepare_dataset(
     langfuse_path="data/langfuse_test.json",
-    benchmark_path="data/baseline_benchmark_flash_gepa_v1.json",
+    benchmark_path="data/teacher_outputs.json",
     output_path="data/train_distill.json",
     use_full_reasoning=True,
     filter_by_agreement=True
