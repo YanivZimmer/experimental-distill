@@ -1,0 +1,20 @@
+# Requirements for Mac M5 Pro (ARM64)
+# Does NOT use Unsloth (CUDA-only)
+
+# Core training (ARM64-compatible)
+torch>=2.1.0
+transformers>=4.40.0
+datasets>=2.18.0
+trl>=0.8.0
+peft>=0.10.0
+accelerate>=0.27.0
+
+# Quantization (CPU/MPS compatible)
+bitsandbytes>=0.43.0
+
+# Utilities
+psutil>=5.9.0
+tqdm>=4.66.0
+
+# Testing
+pytest>=7.4.0

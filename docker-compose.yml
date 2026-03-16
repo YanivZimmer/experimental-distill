@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # Testing service (runs validation tests)
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.mac
+    image: simple-distill:mac-test
+    container_name: distill-test
+    volumes:
+      - ./data:/workspace/data
+      - ./outputs:/workspace/outputs
+      - ./.cache:/workspace/.cache
+    command: python test_dataset.py --test-splits
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  # Training service for Mac M5 Pro (8GB available RAM)
+  # Uses tiny 0.5B model for CODE VALIDATION only
+  train-mac:
+    build:
+      context: .
+      dockerfile: Dockerfile.mac
+    image: simple-distill:mac-train
+    container_name: distill-train-mac
+    volumes:
+      - ./data:/workspace/data
+      - ./outputs:/workspace/outputs
+      - ./.cache:/workspace/.cache
+      - ./baseline.txt:/workspace/baseline.txt
+    command: python train_mac.py
+    environment:
+      - PYTHONUNBUFFERED=1
+    # Resource limits for Mac M5 with 8GB available RAM
+    deploy:
+      resources:
+        limits:
+          cpus: '8'
+          memory: 6G  # Leave 2GB for macOS
+        reservations:
+          cpus: '4'
+          memory: 4G
+
+  # Cloud GPU training (for production - 32B model)
+  train-cloud:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: simple-distill:cloud-train
+    container_name: distill-train-cloud
+    volumes:
+      - ./data:/workspace/data
+      - ./outputs:/workspace/outputs
+      - ./baseline.txt:/workspace/baseline.txt
+    command: python train.py
+    environment:
+      - PYTHONUNBUFFERED=1
+    # GPU support
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
