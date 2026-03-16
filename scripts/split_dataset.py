@@ -9,7 +9,8 @@ import random
 
 def extract_similarity_features(item):
     """Extract features that indicate alert similarity."""
-    alert_data = item["alert"]
+    # Alert is now stored as JSON string - parse it first
+    alert_data = json.loads(item["alert"]) if isinstance(item["alert"], str) else item["alert"]
     metadata = item.get("metadata", {})
 
     features = {

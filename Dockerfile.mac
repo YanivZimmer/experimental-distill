@@ -4,11 +4,13 @@
 FROM python:3.11-slim
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN echo "Installing system dependencies..." && \
+    apt-get update && apt-get install -y \
     git \
     curl \
     build-essential \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* && \
+    echo "System dependencies installed"
 
 # Set working directory
 WORKDIR /workspace
@@ -17,7 +19,9 @@ WORKDIR /workspace
 COPY requirements.mac.txt /workspace/requirements.txt
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN echo "Installing Python dependencies..." && \
+    pip install --no-cache-dir -r requirements.txt && \
+    echo "Python dependencies installed"
 
 # Copy project files
 COPY . /workspace/
@@ -27,4 +31,4 @@ ENV PYTHONUNBUFFERED=1
 ENV TRANSFORMERS_CACHE=/workspace/.cache
 
 # Default command
-CMD ["python", "test_dataset.py", "--test-splits"]
+CMD ["python", "scripts/test_dataset.py", "--test-splits"]

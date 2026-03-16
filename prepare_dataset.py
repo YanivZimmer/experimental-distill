@@ -55,7 +55,7 @@ def format_training_example(langfuse_item, benchmark_item, use_full_reasoning=Fa
     reasoning, classification = parse_teacher_output(benchmark_item, use_full_reasoning)
 
     return {
-        "alert": json.dumps(langfuse_item["input"], indent=2),  # Store as JSON string!
+        "alert": langfuse_item["input"],  # Just the alert JSON
         "reasoning": reasoning,
         "classification": classification,
         "metadata": {
@@ -67,9 +67,9 @@ def format_training_example(langfuse_item, benchmark_item, use_full_reasoning=Fa
 
 def prepare_dataset(
     langfuse_path="data/langfuse_test.json",
-    benchmark_path="data/teacher_outputs.json",
+    benchmark_path="data/baseline_benchmark_flash_gepa_v1.json",
     output_path="data/train_distill.json",
-    use_full_reasoning=True,
+    use_full_reasoning=False,
     filter_by_agreement=True
 ):
     """Main conversion function."""

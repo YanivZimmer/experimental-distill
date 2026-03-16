@@ -12,7 +12,7 @@ services:
       - ./data:/workspace/data
       - ./outputs:/workspace/outputs
       - ./.cache:/workspace/.cache
-    command: python test_dataset.py --test-splits
+    command: python scripts/test_dataset.py --test-splits
     environment:
       - PYTHONUNBUFFERED=1
 
@@ -28,8 +28,8 @@ services:
       - ./data:/workspace/data
       - ./outputs:/workspace/outputs
       - ./.cache:/workspace/.cache
-      - ./baseline.txt:/workspace/baseline.txt
-    command: python train_mac.py
+      - ./prompts:/workspace/prompts
+    command: python training/train_mac.py
     environment:
       - PYTHONUNBUFFERED=1
     # Resource limits for Mac M5 with 8GB available RAM
@@ -42,7 +42,7 @@ services:
           cpus: '4'
           memory: 4G
 
-  # Cloud GPU training (for production - 32B model)
+  # Cloud GPU training (for production - 3B model)
   train-cloud:
     build:
       context: .
@@ -52,8 +52,8 @@ services:
     volumes:
       - ./data:/workspace/data
       - ./outputs:/workspace/outputs
-      - ./baseline.txt:/workspace/baseline.txt
-    command: python train.py
+      - ./prompts:/workspace/prompts
+    command: python training/train.py
     environment:
       - PYTHONUNBUFFERED=1
     # GPU support
