@@ -1,0 +1,34 @@
+# Dockerfile for Mac M5 Pro (Apple Silicon ARM64)
+# Optimized for 32GB RAM, uses MPS/CPU (not CUDA)
+
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN echo "Installing system dependencies..." && \
+    apt-get update && apt-get install -y \
+    git \
+    curl \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/* && \
+    echo "System dependencies installed"
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy requirements (without Unsloth, as it needs CUDA)
+COPY requirements.mac.txt /workspace/requirements.txt
+
+# Install Python dependencies
+RUN echo "Installing Python dependencies..." && \
+    pip install --no-cache-dir -r requirements.txt && \
+    echo "Python dependencies installed"
+
+# Copy project files
+COPY . /workspace/
+
+# Set environment
+ENV PYTHONUNBUFFERED=1
+ENV TRANSFORMERS_CACHE=/workspace/.cache
+
+# Default command
+CMD ["python", "scripts/test_dataset.py", "--test-splits"]
