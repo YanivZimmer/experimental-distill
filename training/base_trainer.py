@@ -63,6 +63,21 @@ class BaseTrainer(ABC):
         """
         pass
 
+    @abstractmethod
+    def evaluate_classification_accuracy(self, dataset: Any, max_examples: int = None) -> Dict[str, Any]:
+        """
+        Evaluate classification accuracy by generating outputs and comparing predictions.
+        Must be implemented by subclasses for environment-specific generation.
+
+        Args:
+            dataset: Dataset with formatted examples (has 'text' field)
+            max_examples: Optional limit on number of examples to evaluate
+
+        Returns:
+            Dict with classification metrics (accuracy, hits, total, etc.)
+        """
+        pass
+
     def load_datasets(self) -> Dict[str, Any]:
         """
         Load and prepare datasets.
@@ -187,7 +202,9 @@ class BaseTrainer(ABC):
 
     def save_results(self, pre_results: Dict[str, float],
                     post_results: Dict[str, float],
-                    test_results: Optional[Dict[str, float]] = None) -> None:
+                    test_results: Optional[Dict[str, float]] = None,
+                    pre_classification_results: Optional[Dict[str, Any]] = None,
+                    post_classification_results: Optional[Dict[str, Any]] = None) -> None:
         """
         Save evaluation results to JSON.
 
@@ -195,6 +212,8 @@ class BaseTrainer(ABC):
             pre_results: Pre-training evaluation metrics
             post_results: Post-training evaluation metrics
             test_results: Test set evaluation metrics (optional)
+            pre_classification_results: Pre-training classification accuracy (optional)
+            post_classification_results: Post-training classification accuracy (optional)
         """
         results_path = Path(self.config.output_dir) / "evaluation_results.json"
 
@@ -206,6 +225,12 @@ class BaseTrainer(ABC):
         if test_results:
             results_data["test"] = test_results
 
+        if pre_classification_results:
+            results_data["pre_classification_accuracy"] = pre_classification_results
+
+        if post_classification_results:
+            results_data["post_classification_accuracy"] = post_classification_results
+
         with open(results_path, "w") as f:
             json.dump(results_data, f, indent=2)
 
@@ -215,6 +240,15 @@ class BaseTrainer(ABC):
         if 'eval_loss' in pre_results and 'eval_loss' in post_results:
             improvement = pre_results['eval_loss'] - post_results['eval_loss']
             print(f"\nValidation loss improvement: {improvement:.4f}")
+
+        # Print classification accuracy improvement
+        if pre_classification_results and post_classification_results:
+            pre_acc = pre_classification_results.get('accuracy', 0)
+            post_acc = post_classification_results.get('accuracy', 0)
+            improvement = post_acc - pre_acc
+            print(f"Classification accuracy improvement: {improvement:+.2%}")
+            print(f"  Pre-training:  {pre_acc:.2%}")
+            print(f"  Post-training: {post_acc:.2%}")
 
     def run_full_training(self) -> None:
         """
@@ -240,6 +274,23 @@ class BaseTrainer(ABC):
         # Evaluate before training
         pre_results = self.evaluate_before_training()
 
+        # Evaluate classification accuracy before training (limited examples)
+        pre_classification_results = None
+        if datasets.get('val') is not None:
+            print("\n" + "="*60)
+            print("EVALUATING CLASSIFICATION ACCURACY (PRE-TRAINING)")
+            print("="*60)
+
+            # Load raw dataset to get expected labels
+            from datasets import load_dataset
+            raw_val_dataset = load_dataset("json", data_files={"validation": self.config.val_data_path})["validation"]
+
+            # Limit to 5 examples for pre-training (faster)
+            pre_classification_results = self.evaluate_classification_accuracy(raw_val_dataset, max_examples=5)
+
+            print(f"Pre-training accuracy: {pre_classification_results['accuracy']:.2%}")
+            print(f"Hits: {pre_classification_results['hits']}/{pre_classification_results['total']}")
+
         # Train
         self.train()
 
@@ -263,11 +314,30 @@ class BaseTrainer(ABC):
             print(f"Test loss: {test_results.get('eval_loss', 'N/A'):.4f}")
             print(f"Full test results: {test_results}")
 
+        # Evaluate classification accuracy on validation set (post-training)
+        post_classification_results = None
+        if datasets.get('val') is not None:
+            print("\n" + "="*60)
+            print("EVALUATING CLASSIFICATION ACCURACY (POST-TRAINING)")
+            print("="*60)
+
+            # Load raw dataset to get expected labels (reuse from pre-training)
+            from datasets import load_dataset
+            raw_val_dataset = load_dataset("json", data_files={"validation": self.config.val_data_path})["validation"]
+
+            # Evaluate on full validation set
+            post_classification_results = self.evaluate_classification_accuracy(raw_val_dataset)
+
+            print(f"Post-training accuracy: {post_classification_results['accuracy']:.2%}")
+            print(f"Hits: {post_classification_results['hits']}/{post_classification_results['total']}")
+            print(f"By category: {post_classification_results.get('by_category', {})}")
+
         # Save model
         self.save_model()
 
         # Save results
-        self.save_results(pre_results, post_results, test_results)
+        self.save_results(pre_results, post_results, test_results,
+                         pre_classification_results, post_classification_results)
 
         print("\n" + "="*60)
         print("TRAINING COMPLETE!")

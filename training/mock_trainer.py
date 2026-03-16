@@ -150,3 +150,71 @@ class MockTrainerImplementation(BaseTrainer):
         print(f"   ✓ Mock trainer created")
         print(f"   ✓ Effective batch size: {self.config.batch_size * self.config.gradient_accumulation_steps}")
         print(f"   ✓ Training delay: {self.config.training_delay_per_step if self.config.simulate_training_time else 0}s per step")
+
+    def evaluate_classification_accuracy(self, dataset: Any, max_examples: int = None) -> Dict[str, Any]:
+        """
+        Mock classification accuracy evaluation.
+        Returns simulated metrics instead of actually generating outputs.
+
+        Args:
+            dataset: Raw dataset (not used in mock)
+
+        Returns:
+            Dict with simulated classification metrics
+        """
+        print(f"   Simulating classification accuracy for {len(dataset)} examples...")
+
+        # Simulate accuracy (random but reasonable)
+        total = len(dataset)
+        hits = int(total * random.uniform(0.6, 0.85))  # 60-85% accuracy
+        accuracy = hits / total if total > 0 else 0.0
+
+        # Mock category stats
+        by_category = {
+            "benign": {
+                "accuracy": random.uniform(0.5, 0.9),
+                "hits": random.randint(5, 10),
+                "total": random.randint(10, 15),
+            },
+            "malicious": {
+                "accuracy": random.uniform(0.5, 0.9),
+                "hits": random.randint(5, 10),
+                "total": random.randint(10, 15),
+            },
+        }
+
+        # Mock sample results
+        sample_misses = [
+            {
+                "index": i,
+                "expected_label": "True Positive - Malicious",
+                "expected_normalized": "malicious",
+                "predicted": "benign",
+                "hit": 0,
+                "generated_text": "Mock generated text (miss)...",
+            }
+            for i in range(min(3, total))
+        ]
+
+        sample_hits = [
+            {
+                "index": i,
+                "expected_label": "True Positive - Benign",
+                "expected_normalized": "benign",
+                "predicted": "benign",
+                "hit": 1,
+                "generated_text": "Mock generated text (hit)...",
+            }
+            for i in range(min(3, total))
+        ]
+
+        print(f"   ✓ Mock accuracy: {accuracy:.2%}")
+
+        return {
+            "accuracy": accuracy,
+            "hits": hits,
+            "total": total,
+            "by_category": by_category,
+            "sample_misses": sample_misses,
+            "sample_hits": sample_hits,
+        }

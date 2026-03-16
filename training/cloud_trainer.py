@@ -2,7 +2,7 @@
 Cloud trainer implementation.
 Uses Unsloth optimizations for fast GPU training.
 """
-from typing import Any
+from typing import Any, Dict
 
 from unsloth import FastLanguageModel, is_bfloat16_supported
 from trl import SFTTrainer
@@ -10,6 +10,7 @@ from transformers import TrainingArguments
 
 from .base_trainer import BaseTrainer
 from .config import CloudTrainingConfig
+from .classification_evaluator import ClassificationEvaluator
 
 
 class CloudTrainer(BaseTrainer):
@@ -91,3 +92,26 @@ class CloudTrainer(BaseTrainer):
         print(f"   ✓ SFTTrainer created")
         print(f"   ✓ Effective batch size: {self.config.batch_size * self.config.gradient_accumulation_steps}")
         print(f"   ✓ Using: {'bfloat16' if is_bfloat16_supported() else 'float16'}")
+
+    def evaluate_classification_accuracy(self, dataset: Any, max_examples: int = None) -> Dict[str, Any]:
+        """
+        Evaluate classification accuracy by generating outputs and comparing predictions.
+
+        Args:
+            dataset: Raw dataset with 'alert', 'reasoning', 'classification' fields
+            max_examples: Optional limit on number of examples to evaluate
+
+        Returns:
+            Dict with classification metrics (accuracy, hits, total, by_category, examples)
+        """
+        # Enable inference mode for Unsloth
+        FastLanguageModel.for_inference(self.model)
+
+        evaluator = ClassificationEvaluator(
+            model=self.model,
+            tokenizer=self.tokenizer,
+            prompt_template_path=self.config.prompt_template_path,
+            max_seq_length=self.config.max_seq_length,
+        )
+
+        return evaluator.evaluate_dataset(dataset, max_examples=max_examples)

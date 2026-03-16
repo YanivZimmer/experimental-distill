@@ -34,8 +34,8 @@ class TrainingConfig:
 @dataclass
 class LocalTrainingConfig(TrainingConfig):
     """Configuration for local Mac training (tiny model for validation)."""
-    model_name: str = "Qwen/Qwen2.5-0.5B-Instruct"
-    max_seq_length: int = 512
+    model_name: str = "Qwen/Qwen3.5-0.8B"
+    max_seq_length: int = 32000
     num_epochs: int = 1
     batch_size: int = 1
     gradient_accumulation_steps: int = 16
@@ -52,7 +52,7 @@ class LocalTrainingConfig(TrainingConfig):
 @dataclass
 class CloudTrainingConfig(TrainingConfig):
     """Configuration for cloud GPU training (production model)."""
-    model_name: str = "unsloth/Qwen2.5-3B-Instruct"
+    model_name: str = "unsloth/Qwen3.5-35B-A3B"
     max_seq_length: int = 32000
     num_epochs: int = 1
     batch_size: int = 2
