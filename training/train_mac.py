@@ -35,7 +35,7 @@ CONFIG = {
     "gradient_accumulation_steps": 16,  # Effective batch = 16
     "output_dir": "outputs/distilled_model_mac",
     "use_splits": True,
-    "prompt_template_path": "baseline.txt"
+    "prompt_template_path": "prompts/baseline.txt"
 }
 
 def load_prompt_template(path):

@@ -69,7 +69,8 @@ def prepare_dataset(
     langfuse_path="data/langfuse_test.json",
     benchmark_path="data/baseline_benchmark_flash_gepa_v1.json",
     output_path="data/train_distill.json",
-    use_full_reasoning=False
+    use_full_reasoning=True,
+    filter_by_agreement=True
 ):
     """Main conversion function."""
 
@@ -81,6 +82,7 @@ def prepare_dataset(
     # Join datasets
     training_data = []
     missing_ids = []
+    filtered_disagreement = 0
 
     for benchmark_item in benchmark_items:
         item_id = benchmark_item["item_id"]
@@ -89,11 +91,19 @@ def prepare_dataset(
             missing_ids.append(item_id)
             continue
 
+        # Filter: only keep samples where Gemini agreed with ground truth
+        if filter_by_agreement and benchmark_item.get("hit") != 1:
+            filtered_disagreement += 1
+            continue
+
         langfuse_item = langfuse_by_id[item_id]
         example = format_training_example(langfuse_item, benchmark_item, use_full_reasoning)
         training_data.append(example)
 
     print(f"Successfully joined {len(training_data)} examples")
+
+    if filter_by_agreement:
+        print(f"Filtered out {filtered_disagreement} examples where Gemini disagreed with ground truth")
 
     if missing_ids:
         print(f"Warning: {len(missing_ids)} benchmark items not found in langfuse data")
@@ -119,6 +129,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--full-reasoning", action="store_true",
                        help="Use full structured output instead of just justification")
+    parser.add_argument("--no-filter", action="store_true",
+                       help="Include all samples (don't filter by Gemini agreement)")
     args = parser.parse_args()
 
-    prepare_dataset(use_full_reasoning=args.full_reasoning)
+    prepare_dataset(
+        use_full_reasoning=args.full_reasoning,
+        filter_by_agreement=not args.no_filter
+    )

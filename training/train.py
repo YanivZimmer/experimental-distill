@@ -11,19 +11,20 @@ from transformers import TrainingArguments
 
 # Configuration
 CONFIG = {
-    "model_name": "unsloth/Qwen2.5-32B-Instruct",
-    "max_seq_length": 4096,
+    "model_name": "unsloth/Qwen2.5-3B-Instruct",
+    "max_seq_length": 32000,
     "load_in_4bit": True,
     "lora_r": 16,
     "lora_alpha": 16,
     "lora_dropout": 0.05,
     "learning_rate": 2e-4,
-    "num_epochs": 3,
+    "num_epochs": 1,
     "batch_size": 2,
     "gradient_accumulation_steps": 4,
     "output_dir": "outputs/distilled_model",
+    "checkpoint_dir": "outputs/checkpoints",
     "use_splits": True,
-    "prompt_template_path": "baseline.txt"
+    "prompt_template_path": "prompts/baseline.txt"
 }
 
 def load_prompt_template(path):
@@ -123,7 +124,7 @@ def train(data_path="data/train_distill.json", config=CONFIG):
 
     # Training arguments
     training_args = TrainingArguments(
-        output_dir=config["output_dir"],
+        output_dir=config["checkpoint_dir"],
         per_device_train_batch_size=config["batch_size"],
         per_device_eval_batch_size=config["batch_size"],
         gradient_accumulation_steps=config["gradient_accumulation_steps"],
@@ -133,6 +134,7 @@ def train(data_path="data/train_distill.json", config=CONFIG):
         bf16=is_bfloat16_supported(),
         logging_steps=10,
         save_strategy="epoch",
+        save_total_limit=2,
         evaluation_strategy="epoch" if eval_dataset else "no",
         load_best_model_at_end=True if eval_dataset else False,
         metric_for_best_model="loss" if eval_dataset else None,
@@ -153,22 +155,69 @@ def train(data_path="data/train_distill.json", config=CONFIG):
         packing=False,
     )
 
-    print("Starting training...")
+    # Evaluate BEFORE training
+    if eval_dataset:
+        print("\n" + "="*60)
+        print("EVALUATION BEFORE TRAINING")
+        print("="*60)
+        pre_train_results = trainer.evaluate()
+        print(f"Pre-training validation loss: {pre_train_results['eval_loss']:.4f}")
+        print(f"Full results: {pre_train_results}")
+
+    print("\n" + "="*60)
+    print("STARTING TRAINING")
+    print("="*60)
     trainer.train()
 
-    print("Saving model...")
+    # Evaluate AFTER training
+    if eval_dataset:
+        print("\n" + "="*60)
+        print("EVALUATION AFTER TRAINING")
+        print("="*60)
+        post_train_results = trainer.evaluate()
+        print(f"Post-training validation loss: {post_train_results['eval_loss']:.4f}")
+        print(f"Full results: {post_train_results}")
+
+        if 'eval_loss' in pre_train_results and 'eval_loss' in post_train_results:
+            improvement = pre_train_results['eval_loss'] - post_train_results['eval_loss']
+            print(f"\nValidation loss improvement: {improvement:.4f}")
+
+    print("\n" + "="*60)
+    print("SAVING MODEL")
+    print("="*60)
     model.save_pretrained(config["output_dir"])
     tokenizer.save_pretrained(config["output_dir"])
+    print(f"Final model saved to {config['output_dir']}")
 
-    print(f"Training complete! Model saved to {config['output_dir']}")
+    # Save evaluation results
+    results_path = Path(config["output_dir"]) / "evaluation_results.json"
+    results_data = {}
+    if eval_dataset:
+        results_data["pre_training"] = pre_train_results
+        results_data["post_training"] = post_train_results
+
+    with open(results_path, "w") as f:
+        json.dump(results_data, f, indent=2)
+    print(f"Evaluation results saved to {results_path}")
 
     # Evaluate on test set if available
     if config["use_splits"]:
-        print("\nEvaluating on test set...")
+        print("\n" + "="*60)
+        print("EVALUATING ON TEST SET")
+        print("="*60)
         test_dataset = load_dataset("json", data_files="data/splits/test.json", split="train")
         test_dataset = test_dataset.map(format_fn, remove_columns=test_dataset.column_names)
         test_results = trainer.evaluate(test_dataset)
-        print(f"Test results: {test_results}")
+        print(f"Test loss: {test_results['eval_loss']:.4f}")
+        print(f"Full test results: {test_results}")
+        results_data["test"] = test_results
+
+        with open(results_path, "w") as f:
+            json.dump(results_data, f, indent=2)
+
+    print("\n" + "="*60)
+    print("TRAINING COMPLETE!")
+    print("="*60)
 
 if __name__ == "__main__":
     train()
